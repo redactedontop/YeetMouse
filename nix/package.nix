@@ -2,7 +2,6 @@
 pkgs @ {
   lib,
   bash,
-  stdenv,
   coreutils,
   writeShellScript,
   makeDesktopItem,
@@ -14,8 +13,9 @@ pkgs @ {
 let
   mkPackage = overrides @ {
     kernel,
+    kernelModuleMakeFlags,
     ...
-  }: (stdenv.mkDerivation rec {
+  }: (kernel.stdenv.mkDerivation rec {
     pname = "yeetmouse";
     version = shortRev;
     src = lib.fileset.toSource {
@@ -30,7 +30,7 @@ let
       copyDesktopItems
     ];
     buildInputs = [
-      stdenv.cc.cc.lib
+      kernel.stdenv.cc.cc.lib
       pkgs.glfw3
     ];
 
@@ -97,4 +97,4 @@ let
     in
     origRes // { override = newArgs: f (origArgs // newArgs); };
 in
-  makeOverridable mkPackage { inherit kernel; }
+  makeOverridable mkPackage { inherit kernel kernelModuleMakeFlags; }

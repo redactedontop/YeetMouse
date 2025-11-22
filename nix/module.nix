@@ -587,7 +587,6 @@ in {
     nixpkgs.overlays = [ yeetmouseOverlay ];
 
     boot.extraModulePackages = [ yeetmouse ];
-    environment.systemPackages = [ yeetmouse ];
     services.udev = {
       extraRules = let
         echo = "${pkgs.coreutils}/bin/echo";

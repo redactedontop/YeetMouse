@@ -45,49 +45,9 @@ let
       cp $sourceRoot/driver/config.sample.h $sourceRoot/driver/config.h
     '';
 
-    LD_LIBRARY_PATH = "/run/opengl-driver/lib:${lib.makeLibraryPath buildInputs}";
-
-    postBuild = ''
-      make "-j$NIX_BUILD_CORES" -C $sourceRoot/gui "M=$sourceRoot/gui" "LIBS=-lglfw -lGL"
-    '';
-
-    postInstall = let
-      PATH = [ pkgs.zenity ];
-    in /*sh*/''
-      install -Dm755 $sourceRoot/gui/YeetMouseGui $out/bin/yeetmouse
-      wrapProgram $out/bin/yeetmouse \
-        --prefix PATH : ${lib.makeBinPath PATH}
-    '';
-
     buildFlags = [ "modules" ];
     installFlags = [ "INSTALL_MOD_PATH=${placeholder "out"}" ];
     installTargets = [ "modules_install" ];
-
-    desktopItems = [
-      (makeDesktopItem {
-        name = pname;
-        exec = let
-          xhost = "${pkgs.xorg.xhost}/bin/xhost";
-        in writeShellScript "yeetmouse.sh" /*bash*/ ''
-          if [ "$XDG_SESSION_TYPE" = "wayland" ]; then
-            ${xhost} +SI:localuser:root
-            pkexec env DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" "${pname}"
-            ${xhost} -SI:localuser:root
-          else
-            pkexec env DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" "${pname}"
-          fi
-        '';
-        type = "Application";
-        desktopName = "Yeetmouse GUI";
-        comment = "Yeetmouse Configuration Tool";
-        categories = [
-          "Settings"
-          "HardwareSettings"
-        ];
-      })
-    ];
-
-    meta.mainProgram = "yeetmouse";
   }).overrideAttrs (prev: overrides);
 
   makeOverridable =

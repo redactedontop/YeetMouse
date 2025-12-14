@@ -3,6 +3,7 @@
 #include "FunctionHelper.h"
 
 #define EXP_ARG_THRESHOLD 16ll
+#define FUNC_EVAL_START_VAL 0.01f
 
 CachedFunction::CachedFunction(float xStride, Parameters *params)
         : x_stride(xStride), params(params) { }
@@ -111,7 +112,7 @@ float CachedFunction::SynchronousGainEval(float x) const {
     return y;
 }
 
-float CachedFunction::EvalFuncAt(float x) {
+float CachedFunction::EvalFuncAt(float x) const {
     static_assert(AccelMode_Count == 10);
 
     x *= params->preScale;
@@ -401,12 +402,12 @@ void CachedFunction::PreCacheConstants() {
 void CachedFunction::PreCacheFunc() {
     PreCacheConstants();
 
-    float x = -params->offset + 0.01;
+    float x = -params->offset + FUNC_EVAL_START_VAL;
     for (int i = 0; i < PLOT_POINTS; i++) {
         if (x < 0) {
             // skip offset
-            values[i] = params->sens;
-            values_y[i] = params->sensY;
+            values[i] = EvalFuncAt(FUNC_EVAL_START_VAL);
+            values_y[i] = params->sensY * values[i];
             x += x_stride;
             continue;
         }
@@ -420,13 +421,20 @@ void CachedFunction::PreCacheFunc() {
     ValidateSettings();
 }
 
+float CachedFunction::EvaluateFuncWithGlobalParameters(float speed) const {
+    if (float x = speed - params->offset + FUNC_EVAL_START_VAL; x <= 0)
+        return EvalFuncAt(FUNC_EVAL_START_VAL);
+    else
+        return EvalFuncAt(x);
+}
+
 
 bool CachedFunction::ValidateSettings() {
     isValid = true;
 
     for (int i = 0; i < PLOT_POINTS; i++) {
-        if (std::isnan(values[i]) || std::isnan(values_y[i]) || std::isinf(values[i]) || std::isinf(values_y[i]) ||
-            values[i] > 1e5 || values_y[i] > 1e5) {
+        if (std::isnan(values[i]) || std::isinf(values[i]) || values[i] > 1e5 || (
+                params->use_anisotropy && (std::isnan(values_y[i]) || std::isinf(values_y[i]) || values_y[i] > 1e5))) {
             isValid = false;
             return isValid;
         }
@@ -443,11 +451,21 @@ bool CachedFunction::ValidateSettings() {
 
     if (params->accelMode == AccelMode_Lut || params->accelMode == AccelMode_CustomCurve) {
         if (params->LUT_size <= 1) {
+            printf("LUT size is not valid!\n");
             isValid = false;
             return isValid;
         }
         for (int i = 0; i < params->LUT_size; i++) {
             if (std::isnan(params->LUT_data_x[i]) || std::isnan(params->LUT_data_y[i])) {
+                printf("LUT data is not valid!\n");
+                isValid = false;
+                return isValid;
+            }
+        }
+        // Check if is sorted
+        for (int i = 1; i < params->LUT_size; i++) {
+            if (params->LUT_data_x[i-1] > params->LUT_data_x[i]) {
+                printf("LUT is not sorted!\n");
                 isValid = false;
                 return isValid;
             }

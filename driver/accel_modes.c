@@ -214,15 +214,46 @@ void update_constants(void) {
     if (g_AccelerationMode == AccelMode_Lut || g_AccelerationMode == AccelMode_CustomCurve) {
         if (g_LutSize <= 1 || g_LutData_x[g_LutSize-1] == g_LutData_x[g_LutSize-2])
             g_AccelerationMode = AccelMode_Current;
+
+        // Check if LUT_x is sorted
+        for (int i = 1; i < g_LutSize; i++) {
+            if (g_LutData_x[i - 1] > g_LutData_x[i]) {
+                g_AccelerationMode = AccelMode_Current;
+                printk("YeetMouse: Error: Acceleration mode 'LUT' is not supported for unsorted LUT_x.\n");
+                break;
+            }
+        }
     }
 
-    // Check if LUT_x is sorted
-    for (int i = 1; i < g_LutSize; i++) {
-        if (g_LutData_x[i - 1] > g_LutData_x[i]) {
-            g_AccelerationMode = AccelMode_Current;
-            printk("YeetMouse: Error: Acceleration mode 'LUT' is not supported for unsorted LUT_x.\n");
+    static_assert(AccelMode_Count == 10, "Wrong AccelMode count!");
+    switch (g_AccelerationMode) {
+        case AccelMode_Linear:
+            modesConst.current_func_at_0 = accel_linear(FP64_0_01);
             break;
-        }
+        case AccelMode_Power:
+            modesConst.current_func_at_0 = accel_power(FP64_0_01);
+            break;
+        case AccelMode_Classic:
+            modesConst.current_func_at_0 = accel_classic(FP64_0_01);
+            break;
+        case AccelMode_Motivity:
+            modesConst.current_func_at_0 = accel_motivity(FP64_0_01);
+            break;
+        case AccelMode_Synchronous:
+            modesConst.current_func_at_0 = accel_synchronous(FP64_0_01);
+            break;
+        case AccelMode_Natural:
+            modesConst.current_func_at_0 = accel_natural(FP64_0_01);
+            break;
+        case AccelMode_Jump:
+            modesConst.current_func_at_0 = accel_jump(FP64_0_01);
+            break;
+        case AccelMode_Lut: case AccelMode_CustomCurve:
+            modesConst.current_func_at_0 = accel_lut(FP64_0_01);
+            break;
+        default:
+            modesConst.current_func_at_0 = FP64_1;
+            break;
     }
 
     // Rotation (precalculate the trig. functions)
